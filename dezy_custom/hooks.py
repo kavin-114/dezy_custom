@@ -10,7 +10,7 @@ app_license = "y"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/dezy_custom/css/dezy_custom.css"
-# app_include_js = "/assets/dezy_custom/js/dezy_custom.js"
+app_include_js = "dezy_custom.bundle.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/dezy_custom/css/dezy_custom.css"

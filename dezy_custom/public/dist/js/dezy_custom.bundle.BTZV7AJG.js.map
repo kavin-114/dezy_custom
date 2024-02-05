@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../apps/dezy_custom/dezy_custom/public/js/dezy_custom.bundle.js"],
+  "sourcesContent": ["console.log(\"code from bundle is running\");\n// prepare_dom(data)\n// {\n//     data.wrapper.append(\n//         `<section class=\"items-selector\">\n//             <div class=\"filter-section\">\n//                 <div class=\"label\">${__('All Items')}</div>\n//                 <div class=\"search-field\"></div>\n//                 <div class=\"item-group-field\"></div>\n//             </div>\n//             <div class=\"items-container\"></div>\n//         </section>`\n//     );\n\n//     data.$component = data.wrapper.find('.items-selector');\n//     data.$items_container = data.$component.find('.items-container');\n// }\nimport \"../../dezy_custom/page/material_request_cus/mr_controller\""],
+  "mappings": ";;AAAA,UAAQ,IAAI,6BAA6B;",
+  "names": []
+}
