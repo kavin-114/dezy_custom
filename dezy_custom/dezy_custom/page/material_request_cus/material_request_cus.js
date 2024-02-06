@@ -306,6 +306,7 @@ class Controller {
 
 				form_updated: (item, field, value) => {
 					const item_row = frappe.model.get_doc(item.doctype, item.name);
+					console.log("Form Updated : ",item_row.item_code);
 					if (item_row && item_row[field] != value) {
 						const args = {
 							field,
@@ -478,13 +479,13 @@ class Controller {
 			if (this.frm) {
 				this.frm = this.get_new_frm(this.frm);
 				this.frm.doc.items = [];
-				this.frm.doc.is_pos = 1
+				// this.frm.doc.is_pos = 1
 				resolve();
 			} else {
 				frappe.model.with_doctype(doctype, () => {
 					this.frm = this.get_new_frm();
 					this.frm.doc.items = [];
-					this.frm.doc.is_pos = 1
+					// this.frm.doc.is_pos = 1
 					resolve();
 				});
 			}
@@ -614,6 +615,22 @@ class Controller {
 		frappe.dom.unfreeze();
 		frappe.show_alert({
 			message: __('You must select a customer before adding an item.'),
+			indicator: 'orange'
+		});
+		frappe.utils.play_sound("error");
+	}
+	raise_manager_selection_alert() {
+		frappe.dom.unfreeze();
+		frappe.show_alert({
+			message: __('You must select a manager before submitting an item'),
+			indicator: 'orange'
+		});
+		frappe.utils.play_sound("error");
+	}
+	raise_required_by_alert() {
+		frappe.dom.unfreeze();
+		frappe.show_alert({
+			message: __('You must select a required by date before submitting an item'),
 			indicator: 'orange'
 		});
 		frappe.utils.play_sound("error");
@@ -826,7 +843,7 @@ class ItemCart{
 			`<div class="field-section"></div>`
 		)
 		this.$field_section = this.$component.find('.field-section');
-
+		console.log(this.$field_section);
 		this.make_fields();
 	}
 
@@ -889,23 +906,11 @@ class ItemCart{
 		this.$totals_section = this.$component.find('.cart-totals-section');
 
 		this.$totals_section.append(
-			`<div class="add-discount-wrapper">
-				${this.get_discount_icon()} ${__('Add Discount')}
-			</div>
-			<div class="item-qty-total-container">
+			`<div class="item-qty-total-container">
 				<div class="item-qty-total-label">${__('Total Items')}</div>
 				<div class="item-qty-total-value">0.00</div>
 			</div>
-			<div class="net-total-container">
-				<div class="net-total-label">${__("Net Total")}</div>
-				<div class="net-total-value">0.00</div>
-			</div>
-			<div class="taxes-container"></div>
-			<div class="grand-total-container">
-				<div>${__('Grand Total')}</div>
-				<div>0.00</div>
-			</div>
-			<div class="checkout-btn">${__('Checkout')}</div>
+			<div class="checkout-btn">${__('Submit')}</div>
 			<div class="edit-cart-btn">${__('Edit Cart')}</div>`
 		)
 
@@ -945,7 +950,7 @@ class ItemCart{
 		)
 
 		this.$numpad_section.append(
-			`<div class="numpad-btn checkout-btn" data-button-value="checkout">${__('Checkout')}</div>`
+			`<div class="numpad-btn checkout-btn" data-button-value="checkout">${__('Submit')}</div>`
 		)
 	}
 
@@ -1084,10 +1089,11 @@ class ItemCart{
 		}
 	}
 	make_fields(){
-		console.log("make_fields: ", this);
+		// console.log("make_fields: ", this);
 		this.$field_section.html(`
 		<div class="custom-field"></div>
 		`);
+		let is_source_warehouse = this.$component.find('.custom-field');
 		const me = this
 		this.manager_field = frappe.ui.form.make_control({
 			df: {
@@ -1095,6 +1101,13 @@ class ItemCart{
 				fieldtype: 'Link',
 				options: 'User',
 				placeholder: __('Select Manager'),
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm();
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, 'manager', this.value);
+						// console.log(frm.doc);
+					}
+				}
 			},
 			parent: this.$component.find('.custom-field'),
 			render_input: true,
@@ -1103,23 +1116,85 @@ class ItemCart{
 			df: {
 				label: __('Purpose'),
 				fieldtype: 'Select',
-				options:['Purchase',
+				options:[
+					'Purchase',
 					'Material Transfer',
 					'Material Issue',
 					'Manufacture',
 					'Customer Provided'
 				],
-				placeholder: __('Purpose of'),
-				default:__('Purchase'),
+				placeholder: __('Default Purchase'),
+				onchange: function () {
+					if (this.value !== "Purchase") {
+					const frm = me.events.get_frm();
+					is_source_warehouse["0"].lastChild.hidden = false;
+					console.log("if block",frm.doc.name);
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
+				}
+				else if(this.value === 'Purchase'){
+					const frm = me.events.get_frm();
+					// const frm = me.events.get_frm().doc;
+					console.log("else block :", frm);
+					is_source_warehouse["0"].lastChild.hidden = true;
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
+				}
+				},
 			},
 			parent: this.$component.find('.custom-field'),
 			render_input: true,
 		});
-		this.purpose_field.set_value('Purchase');
 		this.required_by = frappe.ui.form.make_control({
 			df: {
 				label: __('Required By'),
 				fieldtype: 'Date',
+				onchange: function () {
+					const frm = me.events.get_frm()
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "schedule_date", this.value)
+				}
+			},
+			parent: this.$component.find('.custom-field'),
+			render_input: true,
+		});
+		// this.required_by.set_value(frappe.datetime.get_today())
+
+		this.source_warehouse = frappe.ui.form.make_control({
+			df: {
+				label: __('Source Warehouse'),
+				fieldtype: 'Link',
+				options:'Warehouse',
+				placeholder: __('Warehouse'),
+				get_query: function () {
+					return {
+						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
+						filters: {
+							company:doc.company
+						}
+					};
+				},
+			},
+			parent: this.$component.find('.custom-field'),
+			render_input: true,
+		});
+		// console.log("Source Warehouse",custom_field["0"]);
+		is_source_warehouse["0"].lastChild.hidden = true;
+
+	}
+	make_source_warehouse() {
+		const doc = this.events.get_frm().doc;
+		this.source_warehouse = frappe.ui.form.make_control({
+			df: {
+				label: __('Source Warehouse'),
+				fieldtype: 'Link',
+				options:'Warehouse',
+				placeholder: __('Warehouse'),
+				get_query: function () {
+					return {
+						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
+						filters: {
+							company:doc.company
+						}
+					};
+				},
 			},
 			parent: this.$component.find('.custom-field'),
 			render_input: true,
@@ -1166,6 +1241,11 @@ class ItemCart{
 		});
 		this.customer_field.toggle_label(false);
 	}
+	// set_manager_field(manager) {
+	// 	if (manager) {
+
+	// 	}
+	// }
 
 	fetch_customer_details(customer) {
 		if (customer) {
@@ -2033,34 +2113,34 @@ class ItemDetails {
 
 	render_form(item) {
 		// console.log("item : ",item);
+		const me = this;
 		const doc = this.events.get_frm().doc;
 		const fields_to_display = this.get_form_fields(item);
 		this.$form_container.html('');
 		this.$form_container.append(
 			`<div class="material-control"></div>`
 		)
-		this.target_warehouse = frappe.ui.form.make_control({
-			df: {
-				label: __('Target Warehouse'),
-				fieldtype: 'Link',
-				options:'Warehouse',
-				placeholder: __('Warehouse'),
-				on_change: function (){
-					console.log("Success");
-				},
-				get_query: function () {
-					return {
-						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
-						filters: {
-							company:doc.company
-						}
-					};
-				},
-			},
-			parent: this.$component.find('.material-control'),
-			render_input: true,
-		});
-
+		// this.target_warehouse = frappe.ui.form.make_control({
+		// 	df: {
+		// 		label: __('Target Warehouse'),
+		// 		fieldtype: 'Link',
+		// 		options:'Warehouse',
+		// 		placeholder: __('Warehouse'),
+		// 		on_change: function (){
+		// 				console.log(me.current_item);
+		// 		},
+		// 		get_query: function () {
+		// 			return {
+		// 				query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
+		// 				filters: {
+		// 					company:doc.company
+		// 				}
+		// 			};
+		// 		},
+		// 	},
+		// 	parent: this.$component.find('.material-control'),
+		// 	render_input: true,
+		// });
 		// this.target_warehouse = frappe.ui.form.make_control({
 		// 	df: {
 		// 	label: "Target Warehouse",
@@ -2081,6 +2161,7 @@ class ItemDetails {
 		// 	render_input:true,
 		// 	}
 		// })
+		console.log("Fields To Display : ", fields_to_display);
 		fields_to_display.forEach((fieldname, idx) => {
 			this.$form_container.append(
 				`<div class="${fieldname}-control" data-fieldname="${fieldname}"></div>`
@@ -2088,8 +2169,7 @@ class ItemDetails {
 
 			const field_meta = this.item_meta.fields.find(df => df.fieldname === fieldname);
 			// fieldname === 'discount_percentage' ? (field_meta.label = __('Discount (%)')) : '';
-			const me = this;
-
+			console.log("field_meta:", me.current_item)
 			this[`${fieldname}_control`] = frappe.ui.form.make_control({
 				df: {
 					...field_meta,
@@ -2110,7 +2190,7 @@ class ItemDetails {
 	}
 
 	get_form_fields(item) {
-		const fields = ['qty', 'uom', 'rate', 'conversion_factor', 'discount_percentage', 'warehouse', 'actual_qty', 'price_list_rate'];
+		const fields = ['qty', 'uom', 'rate', 'conversion_factor', 'warehouse', 'actual_qty'];
 		if (item.has_serial_no) fields.push('serial_no');
 		if (item.has_batch_no) fields.push('batch_no');
 		return fields;
