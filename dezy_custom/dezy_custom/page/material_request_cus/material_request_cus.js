@@ -306,12 +306,12 @@ class Controller {
 
 				form_updated: (item, field, value) => {
 					const item_row = frappe.model.get_doc(item.doctype, item.name);
-					console.log("Form Updated : ",item_row.item_code);
+					console.log("Form Updated : ",item,field, value);
 					if (item_row && item_row[field] != value) {
 						const args = {
 							field,
 							value,
-							item: this.item_details.current_item
+							item: item
 						};
 						return this.on_cart_update(args);
 					}
@@ -548,15 +548,22 @@ class Controller {
 			const item_row_exists = !$.isEmptyObject(item_row);
 
 			const from_selector = field === 'qty' && value === "+1";
-			if (from_selector)
+			if (from_selector){
 				console.log("from selctor");
 				value = flt(item_row.qty) + flt(value);
+
+			}
+			console.log("Field Before: ", field, value);
 
 			if (item_row_exists) {
 				console.log("item row exists");
 
-				if (field === 'qty')
+				if (field === 'qty'){
 					value = flt(value);
+				}
+
+				// if (field === 'warehouse')
+				// 	value = value
 
 				// if (['qty', 'conversion_factor'].includes(field) && value > 0 && !this.allow_negative_stock) {
 				// 	const qty_needed = field === 'qty' ? value * item_row.conversion_factor : item_row.qty * value;
@@ -568,6 +575,7 @@ class Controller {
 				// 	this.update_cart_html(item_row);
 				// }
 				if (this.is_current_item_being_edited(item_row) || from_selector) {
+				console.log("Field : ", field, value);
 					await frappe.model.set_value(item_row.doctype, item_row.name, field, value);
 					this.update_cart_html(item_row);
 				}
@@ -575,7 +583,7 @@ class Controller {
 			} else {
 				// if (!this.frm.doc.customer)
 				// 	return this.raise_customer_selection_alert();
-				console.log("Else Block",item_row);
+				console.log("Else Block",item);
 				const { item_code, batch_no, serial_no, rate, warehouse } = item;
 
 				if (!item_code)
@@ -590,6 +598,10 @@ class Controller {
 
 				if (field === 'serial_no')
 					new_item['qty'] = value.split(`\n`).length || 0;
+
+				if (field === 'warehouse') {
+						new_item['warehouse'] = warehouse
+				}
 
 				item_row = this.frm.add_child('items', new_item);
 
@@ -613,7 +625,7 @@ class Controller {
 			console.log("eroor",error);
 		} finally {
 			frappe.dom.unfreeze();
-			// console.log(("on_cart_update :", item_row));
+			console.log(("on_cart_update :", item_row));
 			return item_row;
 		}
 	}
@@ -649,7 +661,7 @@ class Controller {
 		if (name) {
 			item_row = this.frm.doc.items.find(i => i.name == name);
 		} else {
-		console.log(warehouse);
+		console.log("get_item_from_frm",warehouse);
 			// if item is clicked twice from item selector
 			// then "item_code, batch_no, uom, rate" will help in getting the exact item
 			// to increase the qty by one
@@ -660,8 +672,9 @@ class Controller {
 				// 	|| (i.uom === uom)
 				// 	|| (i.rate == rate)
 			);
-			if (item_row){
-				item_row.warehouse = warehouse
+			if (warehouse){
+				if(item_row)
+					item_row.warehouse = warehouse;
 			}
 		}
 
@@ -753,6 +766,7 @@ class Controller {
 				'warehouse': warehouse
 			},
 			callback(res) {
+			console.log("get_availbel_stock",res.message);
 				if (!me.item_stock_map[item_code])
 					me.item_stock_map[item_code] = {};
 				me.item_stock_map[item_code][warehouse] = res.message;
@@ -792,13 +806,11 @@ class Controller {
 			let save_error = false;
 			await this.frm.save(null, null, null, () => save_error = true);
 			// only move to payment section if save is successful
-			!save_error && this.payment.checkout();
+			// !save_error && this.payment.checkout();
 			// show checkout button on error
 			save_error && setTimeout(() => {
 				this.cart.toggle_checkout_btn(true);
 			}, 300); // wait for save to finish
-		} else {
-			this.payment.checkout();
 		}
 	}
 };
@@ -1133,7 +1145,7 @@ class ItemCart{
 				placeholder: __('Default Purchase'),
 				onchange: function () {
 					console.log(this);
-					if (this.value !== "Purchase") {
+					if (this.value == "Material Transfer") {
 					const frm = me.events.get_frm();
 					is_source_warehouse["0"].lastChild.hidden = false;
 					console.log("if block",frm.doc.name);
@@ -1170,8 +1182,15 @@ class ItemCart{
 				label: __('Source Warehouse'),
 				fieldtype: 'Link',
 				options:'Warehouse',
-				placeholder: __('Warehouse'),
+				placeholder: __('Source Warehouse'),
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm()
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, "set_from_warehouse", this.value)
+					}
+				},
 				get_query: function () {
+					const doc = me.events.get_frm().doc
 					return {
 						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
 						filters: {
@@ -2125,9 +2144,9 @@ class ItemDetails {
 		const doc = this.events.get_frm().doc;
 		const fields_to_display = this.get_form_fields(item);
 		this.$form_container.html('');
-		this.$form_container.append(
-			`<div class="material-control"></div>`
-		)
+			// this.$form_container.append(
+			// 	`<div class="material-control"></div>`
+			// )
 		// this.target_warehouse = frappe.ui.form.make_control({
 		// 	df: {
 		// 		label: __('Target Warehouse'),
@@ -2135,7 +2154,7 @@ class ItemDetails {
 		// 		options:'Warehouse',
 		// 		placeholder: __('Warehouse'),
 		// 		on_change: function (){
-		// 				console.log(me.current_item);
+		// 			console.log("000000000000000000000000000000000000000000000000000000");
 		// 		},
 		// 		get_query: function () {
 		// 			return {
@@ -2177,11 +2196,12 @@ class ItemDetails {
 
 			const field_meta = this.item_meta.fields.find(df => df.fieldname === fieldname);
 			// fieldname === 'discount_percentage' ? (field_meta.label = __('Discount (%)')) : '';
-			console.log("field_meta:", me.current_item)
+
 			this[`${fieldname}_control`] = frappe.ui.form.make_control({
 				df: {
 					...field_meta,
 					onchange: function() {
+						console.log("field_meta:", this.value)
 						me.events.form_updated(me.current_item, fieldname, this.value);
 					}
 				},
@@ -2198,7 +2218,7 @@ class ItemDetails {
 	}
 
 	get_form_fields(item) {
-		const fields = ['qty', 'uom', 'rate', 'conversion_factor', 'warehouse', 'actual_qty'];
+		const fields = ['qty', 'uom', 'rate', 'conversion_factor', 'warehouse'];
 		if (item.has_serial_no) fields.push('serial_no');
 		if (item.has_batch_no) fields.push('batch_no');
 		return fields;
@@ -2241,38 +2261,41 @@ class ItemDetails {
 			this.discount_percentage_control.refresh();
 		}
 
-		if (this.warehouse_control) {
-			this.warehouse_control.df.reqd = 1;
-			this.warehouse_control.df.onchange = function() {
-				if (this.value) {
-					me.events.form_updated(me.current_item, 'warehouse', this.value).then(() => {
-						me.item_stock_map = me.events.get_item_stock_map();
-						const available_qty = me.item_stock_map[me.item_row.item_code][this.value][0];
-						const is_stock_item = Boolean(me.item_stock_map[me.item_row.item_code][this.value][1]);
-						if (available_qty === undefined) {
-							me.events.get_available_stock(me.item_row.item_code, this.value).then(() => {
-								// item stock map is updated now reset warehouse
-								me.warehouse_control.set_value(this.value);
-							})
-						} else if (available_qty === 0 && is_stock_item) {
-							me.warehouse_control.set_value('');
-							const bold_item_code = me.item_row.item_code.bold();
-							const bold_warehouse = this.value.bold();
-							frappe.throw(
-								__('Item Code: {0} is not available under warehouse {1}.', [bold_item_code, bold_warehouse])
-							);
-						}
-						me.actual_qty_control.set_value(available_qty);
-					});
-				}
-			}
-			this.warehouse_control.df.get_query = () => {
-				return {
-					filters: { company: this.events.get_frm().doc.company }
-				}
-			};
-			this.warehouse_control.refresh();
-		}
+		// if (this.warehouse_control) {
+		// 	this.warehouse_control.df.reqd = 1;
+		// 	this.warehouse_control.df.onchange = function() {
+		// 		if (this.value) {
+		// 			me.events.form_updated(me.current_item, 'warehouse', this.value).then(() => {
+		// 			// console.log("----------------------------------", this.value);
+		// 				me.item_stock_map = me.events.get_item_stock_map();
+		// 				// const available_qty = me.item_stock_map[me.item_row.item_code][this.value][0];
+		// 				// const is_stock_item = Boolean(me.item_stock_map[me.item_row.item_code][this.value][1])
+		// 				// me.warehouse_control.set_value(this.value);
+		// 				// if (available_qty === undefined) {
+		// 				// 	me.events.get_available_stock(me.item_row.item_code, this.value).then(() => {
+		// 				// 		// item stock map is updated now reset warehouse
+		// 				// 		me.warehouse_control.set_value(this.value);
+		// 				// 	})
+		// 				// } else if (available_qty === 0 && is_stock_item) {
+		// 				// 	me.warehouse_control.set_value('');
+		// 				// 	const bold_item_code = me.item_row.item_code.bold();
+		// 				// 	const bold_warehouse = this.value.bold();
+		// 				// 	frappe.throw(
+		// 				// 		__('Item Code: {0} is not available under warehouse {1}.', [bold_item_code, bold_warehouse])
+		// 				// 	);
+		// 				// }
+		// 				// me.actual_qty_control.set_value(available_qty);
+		// 			});
+		// 		}
+		// 	}
+		// 	this.warehouse_control.df.get_query = () => {
+		// 		return {
+		// 			filters: { company: this.events.get_frm().doc.company }
+		// 		}
+		// 	};
+		// 	this.warehouse_control.refresh();
+		// 	// this.warehouse_control.set_value(this.value)
+		// }
 
 		if (this.serial_no_control) {
 			this.serial_no_control.df.reqd = 1;
@@ -2308,15 +2331,15 @@ class ItemDetails {
 			}
 		}
 
-		frappe.model.on("POS Invoice Item", "*", (fieldname, value, item_row) => {
-			const field_control = this[`${fieldname}_control`];
-			const item_row_is_being_edited = this.compare_with_current_item(item_row);
+		// frappe.model.on("POS Invoice Item", "*", (fieldname, value, item_row) => {
+		// 	const field_control = this[`${fieldname}_control`];
+		// 	const item_row_is_being_edited = this.compare_with_current_item(item_row);
 
-			if (item_row_is_being_edited && field_control && field_control.get_value() !== value) {
-				field_control.set_value(value);
-				cur_pos.update_cart_html(item_row);
-			}
-		});
+		// 	if (item_row_is_being_edited && field_control && field_control.get_value() !== value) {
+		// 		field_control.set_value(value);
+		// 		cur_pos.update_cart_html(item_row);
+		// 	}
+		// });
 	}
 
 	async auto_update_batch_no() {
