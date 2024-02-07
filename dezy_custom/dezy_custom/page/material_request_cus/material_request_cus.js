@@ -1122,7 +1122,7 @@ class ItemCart{
 		this.purpose_field = frappe.ui.form.make_control({
 			df: {
 				label: __('Purpose'),
-				fieldtype: 'MultiSelect',
+				fieldtype: 'Select',
 				options:[
 					'Purchase',
 					'Material Transfer',
