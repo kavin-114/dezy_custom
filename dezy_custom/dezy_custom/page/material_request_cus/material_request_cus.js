@@ -549,9 +549,12 @@ class Controller {
 
 			const from_selector = field === 'qty' && value === "+1";
 			if (from_selector)
-				value = flt(item_row.stock_qty) + flt(value);
+				console.log("from selctor");
+				value = flt(item_row.qty) + flt(value);
 
 			if (item_row_exists) {
+				console.log("item row exists");
+
 				if (field === 'qty')
 					value = flt(value);
 
@@ -560,6 +563,10 @@ class Controller {
 				// 	await this.check_stock_availability(item_row, qty_needed, item_row.warehouse);
 				// }
 
+				// if (this.is_current_item_being_edited(item_row) || from_selector) {
+				// 	await frappe.model.set_value(item_row.doctype, item_row.name, field, value);
+				// 	this.update_cart_html(item_row);
+				// }
 				if (this.is_current_item_being_edited(item_row) || from_selector) {
 					await frappe.model.set_value(item_row.doctype, item_row.name, field, value);
 					this.update_cart_html(item_row);
@@ -568,7 +575,7 @@ class Controller {
 			} else {
 				// if (!this.frm.doc.customer)
 				// 	return this.raise_customer_selection_alert();
-
+				console.log("Else Block",item_row);
 				const { item_code, batch_no, serial_no, rate, warehouse } = item;
 
 				if (!item_code)
@@ -603,7 +610,7 @@ class Controller {
 			}
 
 		} catch (error) {
-			console.log(error);
+			console.log("eroor",error);
 		} finally {
 			frappe.dom.unfreeze();
 			// console.log(("on_cart_update :", item_row));
@@ -1115,7 +1122,7 @@ class ItemCart{
 		this.purpose_field = frappe.ui.form.make_control({
 			df: {
 				label: __('Purpose'),
-				fieldtype: 'Select',
+				fieldtype: 'MultiSelect',
 				options:[
 					'Purchase',
 					'Material Transfer',
@@ -1125,6 +1132,7 @@ class ItemCart{
 				],
 				placeholder: __('Default Purchase'),
 				onchange: function () {
+					console.log(this);
 					if (this.value !== "Purchase") {
 					const frm = me.events.get_frm();
 					is_source_warehouse["0"].lastChild.hidden = false;

@@ -99,9 +99,8 @@ def get_items(start, page_length, item_group, search_term=""):
 
 	condition = get_conditions(search_term)
 	# condition += get_item_group_condition(pos_profile)
-
 	lft, rgt = frappe.db.get_value("Item Group", item_group, ["lft", "rgt"])
-
+	print("left and right :", lft, rgt)
 	bin_join_selection, bin_join_condition = "", ""
 	if hide_unavailable_items:
 		bin_join_selection = ", `tabBin` bin"
@@ -177,7 +176,7 @@ def get_items(start, page_length, item_group, search_term=""):
 				}
 			)
 			result.append(row)
-	print("items :", result)
+	# print("items :", result)
 	return {"items": result}
 
 
