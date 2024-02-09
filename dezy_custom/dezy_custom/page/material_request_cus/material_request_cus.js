@@ -170,7 +170,7 @@ class Controller {
 		this.prepare_dom();
 		this.prepare_components();
 		this.make_material_request_frm()
-		// this.prepare_menu();
+		this.prepare_menu();
 		// this.make_new_invoice();
 	}
 
@@ -196,11 +196,11 @@ class Controller {
 
 		this.page.add_menu_item(__("Open Form View"), this.open_form_view.bind(this), false, 'Ctrl+F');
 
-		this.page.add_menu_item(__("Toggle Recent Orders"), this.toggle_recent_order.bind(this), false, 'Ctrl+O');
+		// this.page.add_menu_item(__("Toggle Recent Orders"), this.toggle_recent_order.bind(this), false, 'Ctrl+O');
 
-		this.page.add_menu_item(__("Save as Draft"), this.save_draft_invoice.bind(this), false, 'Ctrl+S');
+		// this.page.add_menu_item(__("Save as Draft"), this.save_draft_invoice.bind(this), false, 'Ctrl+S');
 
-		this.page.add_menu_item(__('Close the POS'), this.close_pos.bind(this), false, 'Shift+Ctrl+C');
+		// this.page.add_menu_item(__('Close the POS'), this.close_pos.bind(this), false, 'Shift+Ctrl+C');
 	}
 
 	open_form_view() {
@@ -583,13 +583,16 @@ class Controller {
 			} else {
 				// if (!this.frm.doc.customer)
 				// 	return this.raise_customer_selection_alert();
+				if (!this.frm.doc.warehouse){
+					return this.raise_target_warehouse_alert();
+				}
 				console.log("Else Block",item);
 				const { item_code, batch_no, serial_no, rate, warehouse } = item;
 
 				if (!item_code)
 					return;
 
-				const new_item = { item_code, batch_no, rate, [field]: value };
+				const new_item = { item_code, batch_no, rate, warehouse, [field]: value };
 
 				if (serial_no) {
 					await this.check_serial_no_availablilty(item_code, warehouse, serial_no);
@@ -599,9 +602,9 @@ class Controller {
 				if (field === 'serial_no')
 					new_item['qty'] = value.split(`\n`).length || 0;
 
-				if (field === 'warehouse') {
-						new_item['warehouse'] = warehouse
-				}
+				// if (field === 'warehouse') {
+				// 		new_item['warehouse'] = warehouse
+				// }
 
 				item_row = this.frm.add_child('items', new_item);
 
@@ -650,6 +653,14 @@ class Controller {
 		frappe.dom.unfreeze();
 		frappe.show_alert({
 			message: __('You must select a required by date before submitting an item'),
+			indicator: 'orange'
+		});
+		frappe.utils.play_sound("error");
+	}
+	raise_target_warehouse_alert() {
+		frappe.dom.unfreeze();
+		frappe.show_alert({
+			message: __('You must select a clinic before adding an item in item cart'),
 			indicator: 'orange'
 		});
 		frappe.utils.play_sound("error");
@@ -863,7 +874,7 @@ class ItemCart{
 		)
 		this.$field_section = this.$component.find('.field-section');
 		console.log(this.$field_section);
-		this.make_fields();
+		// this.make_fields();
 	}
 
 	reset_customer_selector() {
@@ -881,7 +892,6 @@ class ItemCart{
 					<div class="cart-header">
 						<div class="name-header">${__('Item')}</div>
 						<div class="qty-header">${__('Quantity')}</div>
-						<div class="rate-amount-header">${__('Amount')}</div>
 					</div>
 					<div class="cart-items-section"></div>
 					<div class="cart-totals-section"></div>
@@ -929,8 +939,7 @@ class ItemCart{
 				<div class="item-qty-total-label">${__('Total Items')}</div>
 				<div class="item-qty-total-value">0.00</div>
 			</div>
-			<div class="checkout-btn">${__('Submit')}</div>
-			<div class="edit-cart-btn">${__('Edit Cart')}</div>`
+			<div class="checkout-btn">${__('Submit')}</div>`
 		)
 
 		this.$add_discount_elem = this.$component.find(".add-discount-wrapper");
@@ -1008,14 +1017,16 @@ class ItemCart{
 		});
 
 		this.$component.on('click', '.checkout-btn', async function() {
+			frappe.dom.freeze();
 			if ($(this).attr('style').indexOf('--blue-500') == -1) return;
-
 			await me.events.checkout();
 			me.toggle_checkout_btn(false);
 
 			me.allow_discount_change && me.$add_discount_elem.removeClass("d-none");
-		});
-
+			// frappe.dom.unfreeze();
+			await frappe.msgprint({"message":"Material request has been created successfully","title":"Material Request Created" });
+			window.location.reload()
+		})
 		this.$totals_section.on('click', '.edit-cart-btn', () => {
 			this.events.edit_cart();
 			this.toggle_checkout_btn(true);
@@ -1549,18 +1560,11 @@ class ItemCart{
 				return `
 					<div class="item-qty-rate">
 						<div class="item-qty"><span>${item_data.qty || 0}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.amount, currency)}</div>
-							<div class="item-amount">${format_currency(item_data.rate, currency)}</div>
-						</div>
 					</div>`
 			} else {
 				return `
 					<div class="item-qty-rate">
 						<div class="item-qty"><span>${item_data.qty || 0}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.rate, currency)}</div>
-						</div>
 					</div>`
 			}
 		}
@@ -2016,7 +2020,7 @@ class ItemDetails {
 				<div class="item-name-desc-price">
 					<div class="item-name"></div>
 					<div class="item-desc"></div>
-					<div class="item-price"></div>
+					<div class="item-code"></div>
 				</div>
 				<div class="item-image"></div>
 			</div>
@@ -2026,7 +2030,7 @@ class ItemDetails {
 
 		this.$item_name = this.$component.find('.item-name');
 		this.$item_description = this.$component.find('.item-desc');
-		this.$item_price = this.$component.find('.item-price');
+		this.$item_code = this.$component.find('.item-code');
 		this.$item_image = this.$component.find('.item-image');
 		this.$form_container = this.$component.find('.form-container');
 		this.$dicount_section = this.$component.find('.discount-section');
@@ -2062,7 +2066,7 @@ class ItemDetails {
 			this.current_item = item;
 
 			this.render_dom(item);
-			this.render_discount_dom(item);
+			// this.render_discount_dom(item);
 			this.render_form(item);
 			this.events.highlight_cart_item(item);
 		} else {
@@ -2094,7 +2098,7 @@ class ItemDetails {
 	}
 
 	render_dom(item) {
-		let { item_name, description, image, price_list_rate } = item;
+		let { item_name, description, image, price_list_rate, item_code } = item;
 
 		function get_description_html() {
 			if (description) {
@@ -2106,7 +2110,8 @@ class ItemDetails {
 
 		this.$item_name.html(item_name);
 		this.$item_description.html(get_description_html());
-		this.$item_price.html(format_currency(price_list_rate, this.currency));
+		this.$item_code.html(item_code)
+		// this.$item_price.html(format_currency(price_list_rate, this.currency));
 		if (!this.hide_images && image) {
 			this.$item_image.html(
 				`<img
@@ -2132,7 +2137,7 @@ class ItemDetails {
 				`<div class="item-rate">${format_currency(item.price_list_rate, this.currency)}</div>
 				<div class="item-discount">${item.discount_percentage}% off</div>`
 			)
-			this.$item_price.html(format_currency(item.rate, this.currency));
+			// this.$item_price.html(format_currency(item.rate, this.currency));
 		} else {
 			this.$dicount_section.html(``)
 		}
@@ -2144,50 +2149,6 @@ class ItemDetails {
 		const doc = this.events.get_frm().doc;
 		const fields_to_display = this.get_form_fields(item);
 		this.$form_container.html('');
-			// this.$form_container.append(
-			// 	`<div class="material-control"></div>`
-			// )
-		// this.target_warehouse = frappe.ui.form.make_control({
-		// 	df: {
-		// 		label: __('Target Warehouse'),
-		// 		fieldtype: 'Link',
-		// 		options:'Warehouse',
-		// 		placeholder: __('Warehouse'),
-		// 		on_change: function (){
-		// 			console.log("000000000000000000000000000000000000000000000000000000");
-		// 		},
-		// 		get_query: function () {
-		// 			return {
-		// 				query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
-		// 				filters: {
-		// 					company:doc.company
-		// 				}
-		// 			};
-		// 		},
-		// 	},
-		// 	parent: this.$component.find('.material-control'),
-		// 	render_input: true,
-		// });
-		// this.target_warehouse = frappe.ui.form.make_control({
-		// 	df: {
-		// 	label: "Target Warehouse",
-		// 	fieldtype: "Link",
-		// 	options: "Warehouse",
-		// 	on_change: function (){
-		// 		console.log("Success");
-		// 	},
-		// 	get_query: function () {
-		// 		return {
-		// 			query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
-		// 			filters: {
-		// 				company:doc.company
-		// 			}
-		// 		};
-		// 	},
-		// 	parent:this.$form_container.find(".material-control"),
-		// 	render_input:true,
-		// 	}
-		// })
 		console.log("Fields To Display : ", fields_to_display);
 		fields_to_display.forEach((fieldname, idx) => {
 			this.$form_container.append(
@@ -2218,7 +2179,7 @@ class ItemDetails {
 	}
 
 	get_form_fields(item) {
-		const fields = ['qty', 'uom', 'rate', 'conversion_factor', 'warehouse'];
+		const fields = ['qty', 'uom', 'rate', 'conversion_factor'];
 		if (item.has_serial_no) fields.push('serial_no');
 		if (item.has_batch_no) fields.push('batch_no');
 		return fields;
@@ -2247,8 +2208,8 @@ class ItemDetails {
 					me.events.form_updated(me.current_item, 'rate', this.value).then(() => {
 						const item_row = frappe.get_doc(me.doctype, me.name);
 						const doc = me.events.get_frm().doc;
-						me.$item_price.html(format_currency(item_row.rate, doc.currency));
-						me.render_discount_dom(item_row);
+						// me.$item_price.html(format_currency(item_row.rate, doc.currency));
+						// me.render_discount_dom(item_row);
 					});
 				}
 			};
@@ -2468,6 +2429,7 @@ class ItemSelector{
 
 	inti_component() {
 		this.prepare_dom();
+		this.make_fields_bar();
 		this.make_search_bar();
 		this.load_items_data();
 		this.bind_events();
@@ -2477,6 +2439,15 @@ class ItemSelector{
 	prepare_dom() {
 		this.wrapper.append(
 			`<section class="items-selector">
+			<div class="field-label">${__('Fields')}</div>
+				<div class="field-input-section">
+					<div class="manager-field"></div>
+					<div class="purpose-field"></div>
+					<div class="required-field"></div>
+					<div class="target-field"></div>
+					<div class="source-field"></div>
+
+				</div>
 				<div class="filter-section">
 					<div class="label">${__('All Items')}</div>
 					<div class="search-field"></div>
@@ -2551,9 +2522,7 @@ class ItemSelector{
 
 		function get_item_image_html() {
 			if (!me.hide_images && item_image) {
-				return `<div class="item-qty-pill">
-							<span class="indicator-pill whitespace-nowrap ${indicator_color}">${qty_to_display}</span>
-						</div>
+				return `
 						<div class="flex items-center justify-center h-32 border-b-grey text-6xl text-grey-100">
 							<img
 								onerror="cur_pos.item_selector.handle_broken_image(this)"
@@ -2562,9 +2531,7 @@ class ItemSelector{
 							>
 						</div>`;
 			} else {
-				return `<div class="item-qty-pill">
-							<span class="indicator-pill whitespace-nowrap ${indicator_color}">${qty_to_display}</span>
-						</div>
+				return `
 						<div class="item-display abbr">${frappe.get_abbr(item.item_name)}</div>`;
 			}
 		}
@@ -2578,11 +2545,10 @@ class ItemSelector{
 
 				${get_item_image_html()}
 
-				<div class="item-detail">
-					<div class="item-name">
-						${frappe.ellipsis(item.item_name, 18)}
+				<div class="item-detail" style = "height:fit-content !important; padding:0.5rem;">
+					<div class="item-name" style = "overflow:normal !important; white-space:normal !important;">
+						${item.item_name}
 					</div>
-					<div class="item-rate">${format_currency(price_list_rate, item.currency, precision) || 0}</div>
 				</div>
 			</div>`
 		);
@@ -2597,7 +2563,151 @@ class ItemSelector{
 	// 	const doc = me.events.get_frm().doc
 	// 	this.$component.find()
 	// }
+	make_fields_bar() {
+		this.apply_responsive()
+		const me = this;
+		const doc = me.events.get_frm().doc
+		this.$component.find(".manager-field").html('')
+		this.$component.find(".purpose-field").html('')
+		this.$component.find(".required-field").html('')
+		this.$component.find(".target-field").html('')
+		this.$component.find(".source-field").html('')
+		let is_source_warehouse = this.$component.find('.source-field');
+		this.manager_field = frappe.ui.form.make_control({
+			df: {
+				label: __('Manager'),
+				fieldtype: 'Link',
+				options: 'User',
+				placeholder: __('Select Manager'),
+				reqd:1,
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm();
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, 'manager', this.value);
+						// console.log(frm.doc);
+					}
+				}
+			},
+			parent: this.$component.find('.manager-field'),
+			render_input: true,
+		});
+		this.purpose_field = frappe.ui.form.make_control({
+			df: {
+				label: __('Purpose'),
+				fieldtype: 'Select',
+				options:[
+					'Purchase',
+					'Clinic Transfer',
+				],
+				placeholder: __('Default Purchase'),
+				reqd:1,
+				onchange: function () {
+					console.log(this);
+					if (this.value == "Clinic Transfer") {
+					const frm = me.events.get_frm();
+					is_source_warehouse["0"].hidden = false;
+					console.log("if block",frm.doc.name);
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", "Material Transfer")
+				}
+				else if(this.value === 'Purchase'){
+					const frm = me.events.get_frm();
+					// const frm = me.events.get_frm().doc;
+					console.log("else block :", frm);
+					is_source_warehouse["0"].hidden = true;
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
+				}
+				},
+			},
+			parent: this.$component.find('.purpose-field'),
+			render_input: true,
+		});
+		this.required_by = frappe.ui.form.make_control({
+			df: {
+				label: __('Required By'),
+				fieldtype: 'Date',
+				reqd:1,
+				onchange: function () {
+					const frm = me.events.get_frm()
+					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "schedule_date", this.value)
+				}
+			},
+			parent: this.$component.find('.required-field'),
+			render_input: true,
+		});
+		this.target_warehouse = frappe.ui.form.make_control({
+			df: {
+				label: __('Select Clinic'),
+				fieldtype: 'Link',
+				options:'Warehouse',
+				placeholder: __('Select Clinic'),
+				reqd:1,
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm()
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, "warehouse", this.value)
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, "set_warehouse", this.value)
+					}
+				},
+				get_query: function () {
+					const doc = me.events.get_frm().doc
+					return {
+						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
+						filters: {
+							company:doc.company
+						}
+					};
+				},
+			},
+			parent: this.$component.find('.target-field'),
+			render_input: true,
+		});
 
+		this.source_warehouse = frappe.ui.form.make_control({
+			df: {
+				label: __('Source Warehouse'),
+				fieldtype: 'Link',
+				options:'Warehouse',
+				placeholder: __('Source Warehouse'),
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm()
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, "set_from_warehouse", this.value)
+					}
+				},
+				get_query: function () {
+					const doc = me.events.get_frm().doc
+					return {
+						query: 'dezy_custom.dezy_custom.page.material_request_cus.material_request_cus.warehouse_query',
+						filters: {
+							company:doc.company
+						}
+					};
+				},
+			},
+			parent: this.$component.find('.source-field'),
+			render_input: true,
+		});
+		// console.log("Source Warehouse",custom_field["0"]);
+		is_source_warehouse["0"].hidden = true;
+	}
+	apply_responsive() {
+		const field_input_section = this.$component.find(".field-input-section");
+		const label_field =this.$component.find(".field-label");
+		label_field.css({
+			"text-align":"left",
+			"font-weight":"bold",
+			"font-size":"1rem",
+			"padding":"0.5rem 0 0 1rem"
+		})
+		field_input_section.css({
+			"display": "grid",
+            "grid-template-columns": "repeat(2,  1fr)",
+            "background-color": "white",
+            "padding": "1rem",
+            "align-items": "center",
+            "grid-gap":"0.5rem",
+		})
+	}
 	make_search_bar() {
 		const me = this;
 		const doc = me.events.get_frm().doc;
@@ -2704,13 +2814,14 @@ class ItemSelector{
 
 		this.$component.on('click', '.item-wrapper', function() {
 			const $item = $(this);
+			console.log("on_click: ", $item);
 			const item_code = unescape($item.attr('data-item-code'));
-			const warehouse = unescape($item.attr('data-warehouse'));
 			let batch_no = unescape($item.attr('data-batch-no'));
 			let serial_no = unescape($item.attr('data-serial-no'));
 			let uom = unescape($item.attr('data-uom'));
 			let rate = unescape($item.attr('data-rate'));
-
+			const doc = me.events.get_frm().doc
+			let warehouse = doc.warehouse
 			// escape(undefined) returns "undefined" then unescape returns "undefined"
 			batch_no = batch_no === "undefined" ? undefined : batch_no;
 			serial_no = serial_no === "undefined" ? undefined : serial_no;
