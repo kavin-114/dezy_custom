@@ -176,9 +176,11 @@ class Controller {
 
 	prepare_dom() {
 		this.wrapper.append(
-			`<div class="point-of-sale-app"></div>`
+			`
+			<div class = "fields-section"></div>
+			<div class="point-of-sale-app"></div>`
 		);
-
+		this.$fields_component = this.wrapper.find('.fields-section')
 		this.$components_wrapper = this.wrapper.find('.point-of-sale-app');
 	}
 
@@ -256,6 +258,7 @@ class Controller {
 	init_item_selector() {
 		this.item_selector = new ItemSelector({
 			wrapper: this.$components_wrapper,
+			field_wrapper:this.$fields_component,
 			settings: this.settings,
 			events: {
 				item_selected: args => this.on_cart_update(args),
@@ -2418,8 +2421,9 @@ class ItemDetails {
 
 class ItemSelector{
 	// eslint-disable-next-line no-unused-vars
-	constructor({ frm, wrapper, events, settings }) {
+	constructor({ frm, wrapper,field_wrapper, events, settings }) {
 		this.wrapper = wrapper;
+		this.field_section = field_wrapper;
 		this.events = events;
 		this.hide_images = settings.hide_images;
 		this.auto_add_item = settings.auto_add_item_to_cart;
@@ -2437,17 +2441,21 @@ class ItemSelector{
 	}
 
 	prepare_dom() {
+		this.field_section.append(
+			`
+			<section class = "fields-section">
+			<div class="field-label">${__('Fields')}</div>
+			<div class="field-input-section">
+				<div class="manager-field"></div>
+				<div class="purpose-field"></div>
+				<div class="required-field"></div>
+				<div class="target-field"></div>
+				<div class="source-field"></div>
+			</div>
+			</section>`
+		)
 		this.wrapper.append(
 			`<section class="items-selector">
-			<div class="field-label">${__('Fields')}</div>
-				<div class="field-input-section">
-					<div class="manager-field"></div>
-					<div class="purpose-field"></div>
-					<div class="required-field"></div>
-					<div class="target-field"></div>
-					<div class="source-field"></div>
-
-				</div>
 				<div class="filter-section">
 					<div class="label">${__('All Items')}</div>
 					<div class="search-field"></div>
@@ -2456,7 +2464,7 @@ class ItemSelector{
 				<div class="items-container"></div>
 			</section>`
 		);
-
+		this.$fields_component = this.field_section.find('.fields-section')
 		this.$component = this.wrapper.find('.items-selector');
 		this.$items_container = this.$component.find('.items-container');
 	}
@@ -2567,12 +2575,12 @@ class ItemSelector{
 		this.apply_responsive()
 		const me = this;
 		const doc = me.events.get_frm().doc
-		this.$component.find(".manager-field").html('')
-		this.$component.find(".purpose-field").html('')
-		this.$component.find(".required-field").html('')
-		this.$component.find(".target-field").html('')
-		this.$component.find(".source-field").html('')
-		let is_source_warehouse = this.$component.find('.source-field');
+		this.$fields_component.find(".manager-field").html('')
+		this.$fields_component.find(".purpose-field").html('')
+		this.$fields_component.find(".required-field").html('')
+		this.$fields_component.find(".target-field").html('')
+		this.$fields_component.find(".source-field").html('')
+		let is_source_warehouse = this.$fields_component.find('.source-field');
 		this.manager_field = frappe.ui.form.make_control({
 			df: {
 				label: __('Manager'),
@@ -2588,7 +2596,7 @@ class ItemSelector{
 					}
 				}
 			},
-			parent: this.$component.find('.manager-field'),
+			parent: this.$fields_component.find('.manager-field'),
 			render_input: true,
 		});
 		this.purpose_field = frappe.ui.form.make_control({
@@ -2618,7 +2626,7 @@ class ItemSelector{
 				}
 				},
 			},
-			parent: this.$component.find('.purpose-field'),
+			parent: this.$fields_component.find('.purpose-field'),
 			render_input: true,
 		});
 		this.required_by = frappe.ui.form.make_control({
@@ -2631,7 +2639,7 @@ class ItemSelector{
 					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "schedule_date", this.value)
 				}
 			},
-			parent: this.$component.find('.required-field'),
+			parent: this.$fields_component.find('.required-field'),
 			render_input: true,
 		});
 		this.target_warehouse = frappe.ui.form.make_control({
@@ -2658,7 +2666,7 @@ class ItemSelector{
 					};
 				},
 			},
-			parent: this.$component.find('.target-field'),
+			parent: this.$fields_component.find('.target-field'),
 			render_input: true,
 		});
 
@@ -2684,15 +2692,15 @@ class ItemSelector{
 					};
 				},
 			},
-			parent: this.$component.find('.source-field'),
+			parent: this.$fields_component.find('.source-field'),
 			render_input: true,
 		});
 		// console.log("Source Warehouse",custom_field["0"]);
 		is_source_warehouse["0"].hidden = true;
 	}
 	apply_responsive() {
-		const field_input_section = this.$component.find(".field-input-section");
-		const label_field =this.$component.find(".field-label");
+		const field_input_section = this.$fields_component.find(".field-input-section");
+		const label_field =this.$fields_component.find(".field-label");
 		label_field.css({
 			"text-align":"left",
 			"font-weight":"bold",
@@ -2701,7 +2709,7 @@ class ItemSelector{
 		})
 		field_input_section.css({
 			"display": "grid",
-            "grid-template-columns": "repeat(2,  1fr)",
+            "grid-template-columns": "repeat(4,  1fr)",
             "background-color": "white",
             "padding": "1rem",
             "align-items": "center",
