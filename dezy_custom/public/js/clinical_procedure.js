@@ -1,5 +1,5 @@
-frappe.ui.form.on('Stock Entry',{
-    refresh: function (frm){
+frappe.ui.form.on('Clinical Procedure', {
+    refresh:function (frm){
         var item_group, search_term;
         var wrapper = frm.get_field("custom_item_card").$wrapper;
           wrapper.html("")
@@ -164,6 +164,7 @@ frappe.ui.form.on('Stock Entry',{
 			let batch_no = unescape($item.attr('data-batch-no'));
 			let serial_no = unescape($item.attr('data-serial-no'));
 			let uom = unescape($item.attr('data-uom'));
+			const item_name = unescape($item.attr('title'));
 			let rate;
 
 			// escape(undefined) returns "undefined" then unescape returns "undefined"
@@ -188,31 +189,33 @@ frappe.ui.form.on('Stock Entry',{
                 rate = res.message
             }
             })
-            add_item(1,rate,item_code,batch_no,serial_no,uom)
+            add_item(1,rate,item_code,item_name,batch_no,serial_no,uom)
         })
 
         function add_item(qty,rate,...item){
         let is_item = 0
-        if (frm.doc.items.length == 1 && !frm.doc.items[0].item_code){
-            frm.clear_table("items")
-        }
-        if (frm.doc.items.length){
-            for (let existing_item = 0; existing_item < frm.doc.items.length; existing_item++) {
-                if (item[0] == frm.doc.items[existing_item].item_code){
-                    is_item = 1
-                    frm.doc.items[existing_item].qty += qty;
+        if (frm.doc.items){
+            if (frm.doc.items.length == 1 && !frm.doc.items[0].item_code){
+                frm.clear_table("items")
+            }
+            if (frm.doc.items.length){
+                for (let existing_item = 0; existing_item < frm.doc.items.length; existing_item++) {
+                    if (item[0] == frm.doc.items[existing_item].item_code){
+                        is_item = 1
+                        frm.doc.items[existing_item].qty += qty;
+                    }
+                    frm.refresh_field("items")
                 }
-                frm.refresh_field("items")
             }
         }
         if (!is_item){
             let row = frm.add_child("items");
             row.item_code = item[0]
+            row.item_name = item[1];
             row.qty = qty
-            row.basic_rate = rate;
-            row.uom = item[3];
+            row.uom = item[4];
             frm.refresh_field("items")
         }
         }
     }
-})
+});
