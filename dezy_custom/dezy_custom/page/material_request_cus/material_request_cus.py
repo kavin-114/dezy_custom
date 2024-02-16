@@ -364,5 +364,11 @@ def get_stock_availability(item_code, warehouse):
 @frappe.validate_and_sanitize_search_inputs
 def warehouse_query(doctype, txt, searchfield, start, page_len, filters):
 	company = str(filters.get("company"))
-	print("----------------------------------",company)
-	return frappe.db.sql(f"SELECT name from `tabWarehouse` WHERE company = '{company}'")
+
+	return frappe.db.sql(
+		""" select name,warehouse_name,warehouse_name from `tabWarehouse`
+			where company = '{company}' and (name like %(txt)s) limit {page_len} offset {start}""".format(
+			 start=start, page_len=page_len,company=company
+		),
+		{"txt": "%%%s%%" % txt},
+	)
