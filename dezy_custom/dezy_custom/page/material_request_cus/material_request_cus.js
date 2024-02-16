@@ -309,7 +309,6 @@ class Controller {
 
 				form_updated: (item, field, value) => {
 					const item_row = frappe.model.get_doc(item.doctype, item.name);
-					console.log("Form Updated : ",item,field, value);
 					if (item_row && item_row[field] != value) {
 						const args = {
 							field,
@@ -542,24 +541,19 @@ class Controller {
 
 	async on_cart_update(args) {
 		frappe.dom.freeze();
-		console.log("Args : ", args);
 		let item_row = undefined;
 		try {
 			let { field, value, item } = args;
 			item_row = this.get_item_from_frm(item);
-			console.log("Item Row : ", item_row);
 			const item_row_exists = !$.isEmptyObject(item_row);
 
 			const from_selector = field === 'qty' && value === "+1";
 			if (from_selector){
-				console.log("from selctor");
 				value = flt(item_row.qty) + flt(value);
 
 			}
-			console.log("Field Before: ", field, value);
 
 			if (item_row_exists) {
-				console.log("item row exists");
 
 				if (field === 'qty'){
 					value = flt(value);
@@ -578,7 +572,6 @@ class Controller {
 				// 	this.update_cart_html(item_row);
 				// }
 				if (this.is_current_item_being_edited(item_row) || from_selector) {
-				console.log("Field : ", field, value);
 					await frappe.model.set_value(item_row.doctype, item_row.name, field, value);
 					this.update_cart_html(item_row);
 				}
@@ -589,7 +582,6 @@ class Controller {
 				if (!this.frm.doc.warehouse){
 					return this.raise_target_warehouse_alert();
 				}
-				console.log("Else Block",item);
 				const { item_code, batch_no, serial_no, rate, warehouse } = item;
 
 				if (!item_code)
@@ -628,10 +620,8 @@ class Controller {
 			}
 
 		} catch (error) {
-			console.log("eroor",error);
 		} finally {
 			frappe.dom.unfreeze();
-			console.log(("on_cart_update :", item_row));
 			return item_row;
 		}
 	}
@@ -1158,17 +1148,14 @@ class ItemCart{
 				],
 				placeholder: __('Default Purchase'),
 				onchange: function () {
-					console.log(this);
 					if (this.value == "Material Transfer") {
 					const frm = me.events.get_frm();
 					is_source_warehouse["0"].lastChild.hidden = false;
-					console.log("if block",frm.doc.name);
 					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
 				}
 				else if(this.value === 'Purchase'){
 					const frm = me.events.get_frm();
 					// const frm = me.events.get_frm().doc;
-					console.log("else block :", frm);
 					is_source_warehouse["0"].lastChild.hidden = true;
 					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
 				}
@@ -1502,7 +1489,6 @@ class ItemCart{
 
 	update_item_html(item, remove_item) {
 		const $item = this.get_cart_item(item);
-		console.log("Upadte_item_html: ", $item, remove_item);
 
 		if (remove_item) {
 			$item && $item.next().remove() && $item.remove();
@@ -1526,7 +1512,6 @@ class ItemCart{
 				)
 				$item_to_update = this.get_cart_item(item_data);
 			}
-			console.log("Render Cart Item : ", item_data, $item_to_update);
 
 		$item_to_update.html(
 			`${get_item_image_html()}
@@ -2152,7 +2137,6 @@ class ItemDetails {
 		const doc = this.events.get_frm().doc;
 		const fields_to_display = this.get_form_fields(item);
 		this.$form_container.html('');
-		console.log("Fields To Display : ", fields_to_display);
 		fields_to_display.forEach((fieldname, idx) => {
 			this.$form_container.append(
 				`<div class="${fieldname}-control" data-fieldname="${fieldname}"></div>`
@@ -2165,7 +2149,6 @@ class ItemDetails {
 				df: {
 					...field_meta,
 					onchange: function() {
-						console.log("field_meta:", this.value)
 						me.events.form_updated(me.current_item, fieldname, this.value);
 					}
 				},
@@ -2480,7 +2463,6 @@ class ItemSelector{
 		// }
 
 		this.get_items({}).then(({message}) => {
-			console.log("load_items_data: ", message.items);
 			this.render_item_list(message.items);
 		});
 	}
@@ -2610,17 +2592,14 @@ class ItemSelector{
 				placeholder: __('Default Purchase'),
 				reqd:1,
 				onchange: function () {
-					console.log(this);
 					if (this.value == "Clinic Transfer") {
 					const frm = me.events.get_frm();
 					is_source_warehouse["0"].hidden = false;
-					console.log("if block",frm.doc.name);
 					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", "Material Transfer")
 				}
 				else if(this.value === 'Purchase'){
 					const frm = me.events.get_frm();
 					// const frm = me.events.get_frm().doc;
-					console.log("else block :", frm);
 					is_source_warehouse["0"].hidden = true;
 					frappe.model.set_value(frm.doc.doctype, frm.doc.name, "material_request_type", this.value)
 				}
